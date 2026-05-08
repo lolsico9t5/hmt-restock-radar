@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>HMT Restock Radar</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#FAF7F2;
+  --surface:#F4F0E8;
+  --card:#FFFFFF;
+  --card2:#F9F5EE;
+  --glass:rgba(255,255,255,0.7);
+  --glass2:rgba(255,255,255,0.9);
+  --border:rgba(0,0,0,0.07);
+  --border2:rgba(0,0,0,0.12);
+  --accent:#C4714A;
+  --accent2:#D4845E;
+  --accent3:#E5A07F;
+  --accentglow:rgba(196,113,74,.1);
+  --accentglow2:rgba(196,113,74,.18);
+  --text:#2A2018;
+  --text2:#6B5D52;
+  --muted:#A09080;
+  --muted2:#DDD4C8;
+  --green:#2E9B74;
+  --green2:#40B589;
+  --greenglow:rgba(46,155,116,.1);
+  --red:#C05050;
+  --redglow:rgba(192,80,80,.08);
+  --blue:#5B80A8;
+  --r:14px;
+  --r2:9px;
+  --r3:22px;
+}
+
+/* ── SUBTLE TEXTURE ── */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:1000;opacity:.25;
+}
+
+/* ── WARM AMBIENT ── */
+body::after{
+  content:'';position:fixed;inset:0;
+  background:
+    radial-gradient(ellipse 70% 50% at 10% 0%,rgba(196,113,74,.05) 0%,transparent 60%),
+    radial-gradient(ellipse 50% 60% at 90% 100%,rgba(46,155,116,.04) 0%,transparent 55%),
+    radial-gradient(ellipse 60% 40% at 50% 50%,rgba(250,247,242,.6) 0%,transparent 70%);
+  pointer-events:none;z-index:0;
+}
+
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Inter',sans-serif;
+  font-size:14px;
+  min-height:100vh;
+  position:relative;
+}
+
+/* ── CREDIT BAR (top strip) ── */
+.credit-bar{
+  background:#FFFFFF;
+  border-bottom:1px solid var(--border);
+  padding:6px 28px;
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:6px;
+  position:sticky;top:0;z-index:201;
+}
+.credit-text{
+  font-size:.68rem;
+  font-weight:500;
+  color:var(--muted);
+  letter-spacing:.01em;
+  font-style:italic;
+}
+.credit-text strong{
+  color:var(--text2);
+  font-style:normal;
+  font-weight:600;
+}
+.claude-logo{
+  width:16px;height:16px;
+  border-radius:50%;
+  background:linear-gradient(135deg,#CC785C,#DA956D);
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:9px;font-weight:800;color:#fff;
+  letter-spacing:-.5px;
+  flex-shrink:0;
+  box-shadow:0 1px 4px rgba(196,113,74,.3);
+}
+
+/* ── HEADER ── */
+.header{
+  background:#FFFFFF;
+  border-bottom:1.5px solid var(--border);
+  padding:0 28px;
+  height:64px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  position:sticky;top:33px;z-index:200;
+  box-shadow:0 1px 12px rgba(0,0,0,.05);
+}
+.header::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--accent),var(--accent3),transparent);
+  opacity:.25;
+}
+
+.logo{display:flex;align-items:center;gap:12px}
+.logo-img{
+  height:32px;
+  width:auto;
+  object-fit:contain;
+  display:block;
+}
+.logo-img-fallback{
+  font-size:.75rem;font-weight:800;
+  color:var(--accent);
+  letter-spacing:.08em;
+  border:1.5px solid var(--accent);
+  border-radius:6px;
+  padding:4px 8px;
+  display:none;
+}
+.logo-badge{display:flex;flex-direction:column;gap:2px;}
+.logo-text{
+  font-family:'Inter',sans-serif;
+  font-size:1rem;
+  font-weight:700;
+  color:var(--text);
+  letter-spacing:-.01em;
+  line-height:1;
+}
+.logo-sub{
+  font-size:.5rem;
+  color:var(--muted);
+  letter-spacing:.18em;
+  text-transform:uppercase;
+  font-weight:500;
+}
+
+.status-pill{
+  display:flex;align-items:center;gap:8px;
+  background:var(--surface);
+  border:1px solid var(--border2);
+  border-radius:30px;
+  padding:7px 16px;
+  font-size:.62rem;
+  letter-spacing:.08em;
+  color:var(--muted);
+  text-transform:uppercase;
+  font-weight:600;
+  transition:all .3s;
+}
+.status-pill.live{
+  border-color:rgba(46,155,116,.25);
+  color:var(--green);
+  background:rgba(46,155,116,.05);
+}
+.status-pill.live .dot{background:var(--green)}
+
+.dot{
+  width:7px;height:7px;border-radius:50%;
+  background:var(--muted);flex-shrink:0;
+  transition:all .3s;
+}
+.dot.active{
+  background:var(--green);
+  box-shadow:0 0 0 3px rgba(46,155,116,.15),0 0 10px rgba(46,155,116,.4);
+  animation:breathe 2.5s ease-in-out infinite;
+}
+.dot.scanning{
+  background:var(--accent);
+  box-shadow:0 0 0 3px rgba(196,113,74,.15),0 0 10px rgba(196,113,74,.4);
+  animation:breathe .6s ease-in-out infinite;
+}
+@keyframes breathe{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.3);opacity:.7}}
+
+/* ── PROGRESS BAR ── */
+.progress-bar{height:2px;background:transparent;overflow:visible;display:none;position:relative}
+.progress-bar.show{display:block}
+.progress-fill{
+  height:100%;
+  background:linear-gradient(90deg,var(--accent),var(--green2),var(--accent));
+  background-size:200% 100%;
+  width:0%;transition:width .5s cubic-bezier(.4,0,.2,1);
+  border-radius:1px;
+  box-shadow:0 0 10px rgba(196,113,74,.5);
+  animation:shimmer 2s linear infinite;
+}
+@keyframes shimmer{0%{background-position:0% 0%}100%{background-position:200% 0%}}
+
+/* ── TOOLBAR ── */
+.toolbar{
+  background:#FFFFFF;
+  border-bottom:1px solid var(--border);
+  padding:12px 28px;
+  display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+  box-shadow:0 1px 6px rgba(0,0,0,.03);
+}
+
+.btn{
+  font-family:'Inter',sans-serif;
+  font-size:.68rem;font-weight:600;
+  padding:8px 16px;
+  border-radius:var(--r2);
+  border:1px solid var(--border2);
+  background:var(--card);
+  color:var(--text2);
+  cursor:pointer;
+  transition:all .2s cubic-bezier(.4,0,.2,1);
+  white-space:nowrap;
+  letter-spacing:.02em;
+}
+.btn:hover:not(:disabled){
+  border-color:var(--accent);
+  color:var(--accent);
+  background:var(--accentglow);
+  transform:translateY(-1px);
+  box-shadow:0 4px 16px rgba(196,113,74,.12);
+}
+.btn:active:not(:disabled){transform:translateY(0)}
+.btn:disabled{opacity:.3;cursor:not-allowed}
+
+.btn.primary{
+  background:linear-gradient(135deg,var(--accent),#A85D38);
+  color:#fff;
+  border-color:var(--accent);
+  font-weight:700;
+  box-shadow:0 2px 12px rgba(196,113,74,.3);
+}
+.btn.primary:hover{
+  background:linear-gradient(135deg,var(--accent2),var(--accent));
+  box-shadow:0 4px 20px rgba(196,113,74,.4);
+  transform:translateY(-2px);
+}
+.btn.stop-btn{
+  border-color:rgba(192,80,80,.3);
+  color:var(--red);
+  background:var(--redglow);
+}
+.btn.stop-btn:hover{
+  border-color:rgba(192,80,80,.5);
+  background:rgba(192,80,80,.1);
+}
+.btn.danger{
+  border-color:rgba(192,80,80,.25);
+  color:var(--red);
+}
+.btn.danger:hover{
+  background:var(--redglow);
+  border-color:rgba(192,80,80,.4);
+}
+.btn.danger-solid{
+  background:linear-gradient(135deg,var(--red),#A03838);
+  color:#fff;border-color:var(--red);
+  font-weight:700;
+}
+
+select{
+  font-family:'Inter',sans-serif;
+  font-size:.68rem;font-weight:500;
+  background:var(--card);
+  color:var(--text2);
+  border:1px solid var(--border2);
+  padding:8px 12px;border-radius:var(--r2);
+  outline:none;cursor:pointer;
+  transition:all .2s;
+}
+select:hover,select:focus{border-color:var(--accent);color:var(--text)}
+select option{background:#fff;color:var(--text)}
+
+.search-wrap{flex:1;min-width:140px;max-width:220px;position:relative}
+.search-wrap input{
+  width:100%;
+  background:var(--surface);
+  border:1px solid var(--border2);
+  color:var(--text);
+  padding:8px 12px 8px 34px;
+  border-radius:var(--r2);
+  font-family:'Inter',sans-serif;
+  font-size:.68rem;font-weight:500;
+  outline:none;
+  transition:all .2s;
+}
+.search-wrap input:focus{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(196,113,74,.08);
+  background:#fff;
+}
+.search-wrap input::placeholder{color:var(--muted)}
+.search-wrap::before{
+  content:'⌕';
+  position:absolute;left:10px;top:50%;transform:translateY(-50%);
+  color:var(--muted);font-size:16px;pointer-events:none;
+}
+
+.lchk{font-size:.58rem;color:var(--muted);margin-left:auto;white-space:nowrap;letter-spacing:.04em}
+
+.badge{
+  font-size:.58rem;font-weight:700;letter-spacing:.08em;
+  background:rgba(46,155,116,.07);
+  border:1px solid rgba(46,155,116,.2);
+  color:var(--green);
+  padding:5px 11px;border-radius:20px;white-space:nowrap;
+}
+
+/* ── STATS ── */
+.stats{
+  display:grid;grid-template-columns:repeat(4,1fr);
+  border-bottom:1px solid var(--border);
+  background:#FFFFFF;
+}
+
+.stat{
+  padding:20px 16px;
+  text-align:center;
+  border-right:1px solid var(--border);
+  position:relative;
+  transition:background .3s;
+}
+.stat:last-child{border-right:none}
+.stat:hover{background:var(--surface)}
+
+.snum{
+  font-family:'Inter',sans-serif;
+  font-size:2rem;
+  color:var(--accent);
+  line-height:1;
+  letter-spacing:-.03em;
+  font-weight:800;
+  transition:all .4s;
+}
+.snum.g{color:var(--green);text-shadow:none}
+.snum.r{color:var(--red);text-shadow:none}
+.snum.b{color:var(--blue);text-shadow:none}
+
+.slbl{
+  font-size:.52rem;
+  color:var(--muted);
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  margin-top:5px;
+  font-weight:600;
+}
+
+/* ── TABS ── */
+.tabs{
+  display:flex;
+  border-bottom:1px solid var(--border);
+  background:#FFFFFF;
+  padding:0 28px;
+  overflow-x:auto;
+  backdrop-filter:none;
+}
+.tabs::-webkit-scrollbar{display:none}
+
+.tab{
+  padding:14px 18px;
+  font-size:.68rem;font-weight:600;
+  color:var(--muted);
+  cursor:pointer;
+  border-bottom:2px solid transparent;
+  white-space:nowrap;
+  letter-spacing:.03em;
+  transition:all .2s;
+  position:relative;
+}
+.tab:hover{color:var(--text2)}
+.tab.active{
+  color:var(--accent);
+  border-bottom-color:var(--accent);
+}
+.tab.active::after{
+  content:'';
+  position:absolute;bottom:-1px;left:50%;transform:translateX(-50%);
+  width:40%;height:3px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+  border-radius:2px 2px 0 0;
+}
+
+/* ── NOTIFICATION ── */
+.notif{
+  margin:12px 28px;
+  padding:12px 16px;
+  border-radius:var(--r2);
+  font-size:.7rem;font-weight:500;
+  display:none;align-items:center;gap:10px;line-height:1.6;
+  letter-spacing:.01em;
+  animation:slideIn .25s ease-out;
+}
+@keyframes slideIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.notif.show{display:flex}
+.notif.info{background:rgba(91,128,168,.06);border:1px solid rgba(91,128,168,.2);color:var(--blue)}
+.notif.ok{background:rgba(46,155,116,.06);border:1px solid rgba(46,155,116,.2);color:var(--green)}
+.notif.err{background:rgba(192,80,80,.06);border:1px solid rgba(192,80,80,.2);color:var(--red)}
+.notif.warn{background:rgba(196,113,74,.06);border:1px solid rgba(196,113,74,.2);color:var(--accent)}
+
+/* ── GRID ── */
+.section{padding:20px 28px 40px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px}
+
+/* ── WATCH CARD ── */
+.wcard{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  overflow:hidden;
+  transition:all .3s cubic-bezier(.4,0,.2,1);
+  position:relative;
+  display:flex;flex-direction:column;
+  cursor:pointer;
+  box-shadow:0 2px 10px rgba(0,0,0,.05);
+}
+.wcard:hover{
+  border-color:var(--border2);
+  transform:translateY(-4px);
+  box-shadow:0 12px 32px rgba(0,0,0,.1);
+}
+.wcard.ins{
+  border-color:rgba(46,155,116,.2);
+}
+.wcard.ins:hover{
+  border-color:rgba(46,155,116,.35);
+  box-shadow:0 12px 32px rgba(0,0,0,.08),0 0 0 1px rgba(46,155,116,.1);
+}
+
+/* ── RIBBON ── */
+.ribbon{
+  position:absolute;top:11px;left:0;
+  font-size:.48rem;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;
+  padding:4px 10px 4px 9px;
+  z-index:5;
+  border-radius:0 5px 5px 0;
+}
+.ribbon.oos{
+  background:rgba(192,80,80,.1);
+  color:var(--red);
+  border:1px solid rgba(192,80,80,.2);border-left:none;
+}
+.ribbon.in{
+  background:rgba(46,155,116,.1);
+  color:var(--green);
+  border:1px solid rgba(46,155,116,.25);border-left:none;
+}
+
+/* ── IMAGE AREA ── */
+.img-wrap{
+  width:100%;aspect-ratio:1/1;
+  background:var(--surface);
+  overflow:hidden;position:relative;cursor:pointer;
+}
+.img-wrap img{
+  width:100%;height:100%;object-fit:cover;
+  transition:transform .5s cubic-bezier(.4,0,.2,1),filter .5s;
+  filter:brightness(1) saturate(1.05);
+}
+.img-wrap:hover img{transform:scale(1.08);}
+
+.img-overlay{
+  position:absolute;inset:0;
+  background:linear-gradient(to top,rgba(42,32,24,.75) 0%,rgba(42,32,24,.15) 50%,transparent 75%);
+  opacity:0;transition:opacity .3s;
+  display:flex;align-items:flex-end;justify-content:center;padding-bottom:14px;
+  z-index:3;
+}
+.img-wrap:hover .img-overlay{opacity:1}
+
+.buy-btn-sm{
+  font-family:'Inter',sans-serif;
+  font-size:.58rem;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;
+  padding:7px 16px;border-radius:30px;
+  background:linear-gradient(135deg,var(--accent2),var(--accent));
+  color:#fff;border:none;cursor:pointer;
+  box-shadow:0 4px 14px rgba(196,113,74,.4);
+  transition:all .2s;
+}
+.buy-btn-sm:hover{
+  transform:translateY(-1px);
+  box-shadow:0 6px 20px rgba(196,113,74,.5);
+}
+
+.img-ph{
+  width:100%;height:100%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:3rem;color:var(--muted);
+  background:linear-gradient(135deg,var(--surface),#EDE8DE);
+  position:absolute;inset:0;
+  border-radius:0;
+}
+
+/* ── CARD INFO ── */
+.cinfo{padding:12px;flex:1;display:flex;flex-direction:column;gap:5px;position:relative;z-index:2}
+.cname{
+  font-size:.7rem;font-weight:500;
+  color:var(--text);line-height:1.45;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+.cprice{
+  font-family:'Inter',sans-serif;
+  font-size:.82rem;
+  color:var(--accent);
+  font-weight:700;letter-spacing:-.01em;
+}
+.cprice.dim{color:var(--muted);font-size:.68rem;font-weight:400}
+
+.empty{
+  grid-column:1/-1;text-align:center;
+  padding:80px 20px;color:var(--muted);
+  font-size:.78rem;line-height:3;
+  font-weight:500;letter-spacing:.02em;
+}
+
+/* ── ALARM OVERLAY ── */
+.alarm-ov{
+  display:none;position:fixed;inset:0;
+  background:rgba(250,247,242,.97);
+  backdrop-filter:blur(24px);
+  z-index:999;
+  flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:32px;
+}
+.alarm-ov.show{display:flex}
+
+.alarm-grid{
+  display:flex;gap:18px;justify-content:center;
+  flex-wrap:wrap;margin:20px 0 28px;max-width:480px;
+}
+.alarm-item{
+  display:flex;flex-direction:column;align-items:center;gap:10px;cursor:pointer;
+  transition:transform .2s;
+}
+.alarm-item:hover{transform:translateY(-4px)}
+.alarm-item img{
+  width:96px;height:96px;object-fit:cover;
+  border-radius:14px;
+  border:2px solid var(--green2);
+  box-shadow:0 0 0 4px rgba(46,155,116,.1),0 4px 20px rgba(46,155,116,.2);
+}
+.alarm-item span{
+  font-size:.58rem;font-weight:500;
+  color:var(--text2);
+  max-width:96px;text-align:center;line-height:1.4;
+}
+
+.aico{
+  font-size:3.5rem;
+  animation:swing .4s ease-in-out infinite alternate;
+}
+@keyframes swing{from{transform:rotate(-12deg)}to{transform:rotate(12deg)}}
+
+.atitle{
+  font-family:'Inter',sans-serif;
+  font-size:1.8rem;font-weight:800;
+  color:var(--green);
+  margin:14px 0 6px;
+  letter-spacing:-.02em;
+}
+.asub{
+  font-size:.68rem;color:var(--muted);
+  letter-spacing:.06em;font-weight:500;
+  margin-bottom:6px;
+}
+
+/* ── DIVIDER ── */
+.section-label{
+  font-size:.55rem;font-weight:700;
+  letter-spacing:.18em;text-transform:uppercase;
+  color:var(--muted2);
+  padding:12px 28px 0;
+  display:flex;align-items:center;gap:12px;
+}
+.section-label::after{
+  content:'';flex:1;height:1px;
+  background:linear-gradient(90deg,var(--border),transparent);
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--muted2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--muted)}
+
+/* ── RESPONSIVE ── */
+@media(max-width:560px){
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .stat:nth-child(2){border-right:none}
+  .stat:nth-child(3){border-top:1px solid var(--border)}
+  .stat:nth-child(4){border-top:1px solid var(--border);border-right:none}
+  .grid{grid-template-columns:repeat(2,1fr);gap:10px}
+  .lchk,.badge{display:none}
+  .toolbar{padding:10px 16px}
+  .section{padding:14px 16px 32px}
+  .header{padding:0 16px;top:29px}
+  .credit-bar{padding:5px 16px}
+  .tabs{padding:0 16px}
+  .notif{margin:10px 16px}
+  .section-label{padding:10px 16px 0}
+}
+</style>
+</head>
+<body>
+
+
+<!-- CREDIT BAR -->
+<div class="credit-bar">
+  <span class="credit-text">
+    <strong>By Benjamin Franklin</strong> — Assisted by Claude AI
+  </span>
+  <span class="claude-logo">C</span>
+</div>
+
+<!-- ALARM OVERLAY -->
+<div class="alarm-ov" id="alarmOv">
+  <div class="aico">⌚</div>
+  <div class="atitle">Back In Stock!</div>
+  <div class="asub">Tap a watch to buy instantly →</div>
+  <div class="alarm-grid" id="alarmGrid"><div class="alarm-item" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6IlZKWTZmcmdicWM5K04ySHFOSHZqVUE9PSIsInZhbHVlIjoieDN1YVVPbnlqdTNodElDVTR0TGorQT09IiwibWFjIjoiMjI2MGYyNzVkOGZjNTExNmZjNTE3NTNlYWJjZjMyNDMxMjgwNWEzOTI2N2M1MDMwY2FlMjI2NmFiNDk2ZDk0ZSIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/2302262067111880.jpg" alt="HMT Vijay Lum Quart"><span>HMT Vijay Lum Quart</span></div></div>
+  <button class="btn danger-solid" onclick="stopAlarm()" style="padding:12px 32px;font-size:.75rem;margin-top:8px;border-radius:12px">✕ &nbsp;Dismiss Alarm</button>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">
+    <img class="logo-img"
+      src="https://www.hmtwatches.in/public/frontend/images/logo.png"
+      alt="HMT"
+      onerror="this.style.display='none';document.querySelector('.logo-img-fallback').style.display='inline-block'">
+    <span class="logo-img-fallback">HMT</span>
+    <div class="logo-badge">
+      <div class="logo-text">HMT Restock Radar</div>
+      <div class="logo-sub">hmtrestockradar · Live Stock Intelligence</div>
+    </div>
+  </div>
+  <div class="status-pill live" id="statusPill">
+    <div class="dot active" id="dot"></div>
+    <span id="timerTxt">NEXT 0:36</span>
+  </div>
+</div>
+
+<div class="progress-bar" id="progressBar">
+  <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
+</div>
+
+<!-- TOOLBAR -->
+<div class="toolbar">
+  <button class="btn stop-btn" id="trackBtn" onclick="toggleTracking()">■  Stop</button>
+  <button class="btn" id="checkBtn" onclick="checkNow()">↻  Refresh</button>
+  <select id="intSel">
+    <option value="60">Every 1 min</option>
+    <option value="180">Every 3 min</option>
+    <option value="300" selected="">Every 5 min</option>
+    <option value="600">Every 10 min</option>
+    <option value="1800">Every 30 min</option>
+  </select>
+  <span class="badge">✦ 100% Free</span>
+  <div class="search-wrap">
+    <input type="text" id="srch" placeholder="Search watches…" oninput="renderGrid()">
+  </div>
+  <div class="lchk" id="lchk">Last: 2:12:57 PM</div>
+</div>
+
+<!-- STATS BAR -->
+<div class="stats">
+  <div class="stat">
+    <div class="snum" id="sT">50</div>
+    <div class="slbl">Total Tracked</div>
+  </div>
+  <div class="stat">
+    <div class="snum g" id="sI">18</div>
+    <div class="slbl">In Stock</div>
+  </div>
+  <div class="stat">
+    <div class="snum r" id="sO">32</div>
+    <div class="slbl">Out of Stock</div>
+  </div>
+  <div class="stat">
+    <div class="snum b" id="sN">2</div>
+    <div class="slbl">Restocked</div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab(&#39;all&#39;,this)">All Watches</div>
+  <div class="tab" onclick="switchTab(&#39;in&#39;,this)">✦ In Stock</div>
+  <div class="tab" onclick="switchTab(&#39;oos&#39;,this)">◌ Out of Stock</div>
+</div>
+
+<div class="notif warn" id="notif">📦 Showing 50 saved watches — live refresh failed, try again</div>
+
+<div class="section">
+  <div class="grid" id="grid"><div class="wcard ins"><div class="ribbon in">● In Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6Im96Z0d5ZWRMUEZwZGFEWkJDSmNaUUE9PSIsInZhbHVlIjoiVE9ZSFBjaWhsWFRiY25sUFpFc25EUT09IiwibWFjIjoiMGMwNjY4NGViM2Y0YmI3NDI3Y2E0ZjljMjk1NGRjZTdlMGIwYTExYmNhN2Q1ZmI3ZjE2MzE2NWJkMmEwMmI0YSIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/0203261274886869.jpg" alt="HMT Bahadur Quartz" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Bahadur Quartz</div><div class="cprice">₹5125</div></div></div><div class="wcard ins"><div class="ribbon in">● In Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6IlJUczhoZUJrU3hvaGhreUZRYkpZeXc9PSIsInZhbHVlIjoic1A5Q3Y4bUdRcDZLZ05Vd1BxU0cxZz09IiwibWFjIjoiNDc0NTQ4ZTJiZDdjYmQ4OWFmMTIyZGFjMWFhYjA1NTc0Yjc0YWVjYjFmN2RkNWJmMzBhMzU4MjgzOWUzZWU2ZCIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/020326256855587.jpg" alt="HMT Bahadur Quartz" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Bahadur Quartz</div><div class="cprice">₹4950</div></div></div><div class="wcard ins"><div class="ribbon in">● In Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6ImhDSTYyUDJGaWQ2eWduWmNTNjZjSnc9PSIsInZhbHVlIjoiRWRLWWl6bCtHVDRXOWZqWkhZTmI0QT09IiwibWFjIjoiOGFlN2Y2YjkxOTc1MzdkOWM4MDFhZDcwNWM5NmU4ZjM1OGM2YzA0NWE5MzljY2QxNzI3MDA0ZjI4ZDcwN2E3NSIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/071124877312062.jpg" alt="HMT Economic OGSL 0" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Economic OGSL 0</div><div class="cprice">₹985</div></div></div><div class="wcard ins"><div class="ribbon in">● In Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6IjVncCszdUw5c0NFRzhEcHlGeExMbkE9PSIsInZhbHVlIjoiQW1xalNUR3g2emFnSGZQL1AxMWtNUT09IiwibWFjIjoiMWE4MmIxNzU1NmZjYzU5NzVmNjNmZDgzYmNiYzBiNThlOGRlNDE0Mjg1MWExM2ZhZGJiYmI5NWI3NDIwMWFlMiIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/071124254880339.jpg" alt="HMT Galaxy CG2G05 Y" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Galaxy CG2G05 Y</div><div class="cprice">₹1533</div></div></div><div class="wcard ins"><div class="ribbon in">● In Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6ImYxUmo1VjA1cUVIbnJjL2lvWE5WRlE9PSIsInZhbHVlIjoiR3QybHJ3bUJHMlYrVGhFalRlWkNmZz09IiwibWFjIjoiNjU5YTBjYTQyNjI2MWMwZTEzODI2M2YxMDNhYjdkNzA2MzY5YjYxZTYyMjAxM2MyN2Y0OGI3M2MyOGQ1OWY1YyIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/2804261184686262.jpg" alt="HMT Galaxy CG2L01 B" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Galaxy CG2L01 B</div><div class="cprice">₹1464</div></div></div><div class="wcard ins"><div class="ribbon in">● In Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6ImVqdEtOMmordmwwMmt2L0g4M3VNWXc9PSIsInZhbHVlIjoiVnRYRzRCTjRnTUpNWnhUcHhNdE9WUT09IiwibWFjIjoiMDU4NWI1ZDlkYjZhNGQ2ZjA1NzI3MDdlMjc4NGRiZWM4Mjk3MmE2YzQ4MGVmY2I1YmVjMGYwNzAzZGM1NjU0NCIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/1103261565822919.png" alt="HMT Galaxy CG2L01 W" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Galaxy CG2L01 W</div><div class="cprice">₹1464</div></div></div><div class="wcard ins"><div class="ribbon in">● In Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6Im9OUUZnV0dlS0xsVGlzRHlJaEdNalE9PSIsInZhbHVlIjoiU3Rja29oajZVdGNZalhoWGhCRmF4QT09IiwibWFjIjoiNzQyZmQ3NjgzOTI3Mzk3MzcxNGY0NGM2YmMzNzlhOTBhY2ExMTdhMjY1NGJhZGIzZWQ0NjVhNjM0NzFmMGQ2ZSIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/080225358541591.jpg" alt="HMT INOX IXGL 11 IP" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT INOX IXGL 11 IP</div><div class="cprice">₹2594</div></div></div><div class="wcard ins"><div class="ribbon in">● In Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6ImxramdDS3NuZ2RBWjYxQmZ3KzBwUFE9PSIsInZhbHVlIjoiRVMxaFNJNHFHbC9meVZ0cWRXWDlpQT09IiwibWFjIjoiNDEyNWY4Yzc2OTk5ZThhZGMzNDlhZDA1MWViNGE2MWFhNmFhZjg2YjUyNzA0NmZiOTZhODU2N2FjNjRkNTA0MiIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/1902261059117217.jpg" alt="HMT INOX IXGM 11 IP" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT INOX IXGM 11 IP</div><div class="cprice">₹2904</div></div></div><div class="wcard ins"><div class="ribbon in">● In Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6IjVCV21wbFErSVVvVVZZVGsxU1UyMWc9PSIsInZhbHVlIjoiVmV4ODNIOEVxK3lrUGVsMFg2dWgydz09IiwibWFjIjoiZDRhOWUxYjcyMGM3OTVmZWQxYWNmODBkYzlhNTI3Y2EzNjQ4NDljODY5OWE4YThhODcyYjY1MjQ4MzM4ZjY4MiIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/1301241845734352.jpg" alt="HMT Pace UGBL 101 B" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Pace UGBL 101 B</div><div class="cprice">₹2575</div></div></div><div class="wcard ins"><div class="ribbon in">● In Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6IlpxanY0NnR3cWxNbkt1Q1hOMU52R0E9PSIsInZhbHVlIjoidENCSU5zelR4YjZYTmFTSldaV1p6UT09IiwibWFjIjoiMjRlNmVjYTFiNDExY2FlZmQyMTRkYTg0ZTc5YTJlMGQwZWY2OTRkNTI3NGFjYTYyM2U3MDVhNTZhMWU0ZmY1NCIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/1011231917791954.jpg" alt="HMT Pace UGBL 101 W" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Pace UGBL 101 W</div><div class="cprice">₹2575</div></div></div><div class="wcard ins"><div class="ribbon in">● In Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6Im80UlJSMXVSMGtZKytQRWpSNkoxWWc9PSIsInZhbHVlIjoiWE1CRU83eWROM0dicEh5SWZpSDU2Zz09IiwibWFjIjoiYjlkZjdhYjcwNWJlNGVhMTY2ZThjZWUwOWNjZTEzODU3MzRlYmFhOGI3MTEyZGU0OTU5YzAzODBlZjBmNDY1MSIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/1302241967250819.jpg" alt="HMT Pace UGBLBL 101" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Pace UGBLBL 101</div><div class="cprice">₹2750</div></div></div><div class="wcard ins"><div class="ribbon in">● In Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6Imgzd1V4ZVpqV0V1dUxiQjNuSHBhS3c9PSIsInZhbHVlIjoiZ0kxeHIwL1BaUXd3R1ZvMnNFZFFjdz09IiwibWFjIjoiYjk0MjRiZjZlY2FjZDdjNDE4MTZhNzYyZTlkNDU0M2UyYjgyN2IxNjJlMGQzZDljYmQ5NDc5YmY5NzQ1MGIyNCIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/1107241552752325.jpg" alt="HMT Pace ULSL 102 B" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Pace ULSL 102 B</div><div class="cprice">₹1900</div></div></div><div class="wcard ins"><div class="ribbon in">● In Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6IjdsckhXT0xSKzZUVm84V3Axa05sNHc9PSIsInZhbHVlIjoiTURuUUpBeUs2WENQc3pCS0Jhc3pOZz09IiwibWFjIjoiNjUyOTdlYzc4NTQ4ZjE4ZDlkMmViMjdlMjQwZTY2MDkyMDQ0NTRkYjc0NjM1NmExYTEzYjg0YjM3YzRlMzY4MSIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/1603231967557368.jpg" alt="HMT Swarna ALGL 02" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Swarna ALGL 02</div><div class="cprice">₹1065</div></div></div><div class="wcard ins"><div class="ribbon in">● In Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6Ik5WUzVDOHBjYjlWZmZ6NHBEMnZsN0E9PSIsInZhbHVlIjoidGtUMEFUQWhOVWZsU2V4Y3lmbFFVUT09IiwibWFjIjoiOGRhZGM2YjdlM2ZiMzI0YzE2MzgwZGVjMDVjMzY3Nzc3ODFhMGFjZmYwZTE5MTIzMWQ0MzI1YTE5OWQ4ZWE2NyIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/2804261723919194.jpg" alt="HMT Utsav BLN 01 IP" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Utsav BLN 01 IP</div><div class="cprice">₹2100</div></div></div><div class="wcard ins"><div class="ribbon in">● In Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6IkdUNjRZNzA3Znd5NzYzdVc3QmZSd3c9PSIsInZhbHVlIjoibTZuY09LWGlmTGlNVXJPZEdBM2ljUT09IiwibWFjIjoiZTk3NjhiMjM0ODAzODQwMjQyZDcwZjhhNDdmODRkNTI1YWJiOTcxNWE1ZWQxOWY3MGE5ZWQ2NjliYWFjYzJkMyIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/070125628914741.jpg" alt="HMT Utsav BLS 80 Wh" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Utsav BLS 80 Wh</div><div class="cprice">₹2326</div></div></div><div class="wcard ins"><div class="ribbon in">● In Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6InZ2bmg1TTlVd04vT2kzTVQ0d1UrWUE9PSIsInZhbHVlIjoiZmgrenhZZG1RaXIxZG9nRzkrcE5CUT09IiwibWFjIjoiN2E0MGU4YjFmZTIwYTgxNzJiMmZiODYyZjU1YzRkNjI1M2U3MWYwODVkZjY4NTliZjM4Yjc0MTlmM2FlY2FiMCIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/0701252111020971.jpg" alt="HMT Utsav BLS 80 Ye" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Utsav BLS 80 Ye</div><div class="cprice">₹2326</div></div></div><div class="wcard ins"><div class="ribbon in">● In Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6IlZKWTZmcmdicWM5K04ySHFOSHZqVUE9PSIsInZhbHVlIjoieDN1YVVPbnlqdTNodElDVTR0TGorQT09IiwibWFjIjoiMjI2MGYyNzVkOGZjNTExNmZjNTE3NTNlYWJjZjMyNDMxMjgwNWEzOTI2N2M1MDMwY2FlMjI2NmFiNDk2ZDk0ZSIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/2302262067111880.jpg" alt="HMT Vijay Lum Quart" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Vijay Lum Quart</div><div class="cprice">₹2575</div></div></div><div class="wcard ins"><div class="ribbon in">● In Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6ImdXYkQyajlTVnZ2Rm91TkFOTzZqd2c9PSIsInZhbHVlIjoiUHByOElVM3FtdzZLczBURVRZQytSZz09IiwibWFjIjoiZTBmZmVkMWE2YmE1ZjNmNTc3NWIzOTZkNDlkMWMxMzBhZWQyNDM2M2YyZWExODM5NTZkZmE0NDRhNWQ3OGRlMyIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/2303261928910018.jpg" alt="HMT Women" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Women</div><div class="cprice">₹1775</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6IjV0czBDNW1mcmZVL0hUU3ZuNmdHMEE9PSIsInZhbHVlIjoiYkRTdk9ITE8xaUhxdVJNTlhWNDRLUT09IiwibWFjIjoiM2FkMWIxZGQ0OTMxOTE0YTRmYTEyMTY0ZGY4YjQyNGQ0NWYxYWQ0OWIxZGQ5ZTJiNjZjYzdlNDhiZGY1NDIyYiIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/230326387066892.jpg" alt="HMT  Men" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT  Men</div><div class="cprice dim">₹1975</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6IjZ6NE1aZ2NzaWNXK1IxM2NVVHZEVnc9PSIsInZhbHVlIjoiV3YraDRGTlpKdmlQQStBamFNNWNjZz09IiwibWFjIjoiN2MwODI0ODY5NmQyM2QzYzM5ZTBiNTc5Y2JmY2MwMGFlMmE1YjIzOTFkZGNhZDEzOWQ0OTQyNWFlZTBkYTllNSIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/301123795325115.jpg" alt="HMT Economic OGSS 0" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Economic OGSS 0</div><div class="cprice dim">₹1025</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6Ik1KTldpRXJsVkx4SXdWbW1xTHFjdVE9PSIsInZhbHVlIjoiMC9rUmxmOTFHWmJmdlBsT1NnSDBuZz09IiwibWFjIjoiZTAxNjdlZDc1ZWNmZWNhNTc2OTczZWFiZjQ0NmY0N2ZjOGUzMWEzYWJkMmNlYTllYTMwOGVjY2NhMWZhZjVlMiIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/11032665350118.png" alt="HMT Galaxy CG1G17 B" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Galaxy CG1G17 B</div><div class="cprice dim">₹1229</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6InBBbzRxaGd1UGdxQWd1VXZsa2lJd2c9PSIsInZhbHVlIjoiVjVGN04zSkhNTittaEpJVWpReWJoZz09IiwibWFjIjoiYTE1YjhiNmRhZjQ0ZDBhODIxNjQyYWMyZDQ2YWViNDYzYjEwZWE5MTgzZWZlNTBiNzAxNzYzOWVkZjZiYzU3OSIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/150723223530460.jpg" alt="HMT Galaxy VG1L09 Y" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Galaxy VG1L09 Y</div><div class="cprice dim">₹1655</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6Ik9MVXZKZGNyUWYyb0daYjZIRFZmUFE9PSIsInZhbHVlIjoiRXdiaWRmeWdESE9ldDlFTEV1V3Z4QT09IiwibWFjIjoiODA2MjljODdlNjNkNjMwMjRkNTE4ZmUzZTQ4OGMzNjUyZGZhNDliOTc3ZjdlMGNlZjVlM2NkMTQ1MzI5Mjg5YyIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/200625155542632.jpg" alt="HMT Himalaya Quartz" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Himalaya Quartz</div><div class="cprice dim">₹2250</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6ImlnT1haMXBJaSsrek50YXRadGxlZFE9PSIsInZhbHVlIjoiaXF4Tncwb3UrUU5TdDhobkFFcGZLQT09IiwibWFjIjoiOWI3ODFjYTQ0NjI1MzM0ZGUxZjZhMTA4ZWNjMzgyNGJlMWQxMTViMzE2NjBmNDgxYTQ3NDQxZmY0NWVjYWEzMCIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/2006252055407350.jpg" alt="HMT Himalaya Quartz" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Himalaya Quartz</div><div class="cprice dim">₹2250</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6InBBUEcxMFlZbWpWdkYrNkZXMDlEcHc9PSIsInZhbHVlIjoiZklnc2RaUW84Unp0RUdJcWg0UWlMQT09IiwibWFjIjoiNDNlY2Y3YjIzMTllMTEwOGRjMTlkNzc3MTU1ZDdiZjdiM2ZiYzU0YjQyOTFjODgyMGY4ZDczYmZhNTY0YjE3NCIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/3010251589235990.jpg" alt="HMT Himalaya Quartz" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Himalaya Quartz</div><div class="cprice dim">₹2250</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6IkJzVGJpemRuMHZsU0lzZDNsOWFYNHc9PSIsInZhbHVlIjoiU2xYRWpORVFNL1BBODRhck5EOFRJUT09IiwibWFjIjoiODUyMDE4YTZhNTJhZGM2MzQ2ZjcwYzJjZTQ1Y2VlM2M2NzYxN2Q2YTdhMjg4MDE2MThjZjA1NzdjNGNiODA2NiIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/080225599973360.jpg" alt="HMT INOX IXGL 11 IP" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT INOX IXGL 11 IP</div><div class="cprice dim">₹2594</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6IkUwWFYvOGx3ZXJ6VGJoWkxZRXZvYlE9PSIsInZhbHVlIjoiQVNld2JxbkJPUjBlQmt0ekZJcFVpQT09IiwibWFjIjoiOTkzNjM0YjNkZDE1MTJjOTJkNzNlMTRkNzlhNWMwZDY4OTEyMGNlZDhiMzQwNWI2MmUzM2I3ZTU1NmYzYTM4MCIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/2403261602031819.jpg" alt="HMT Men" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Men</div><div class="cprice dim">₹2025</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6IjJqR1pEOTVUQjJIWjY5V2Y1dDdHaWc9PSIsInZhbHVlIjoiZzJ1blBDeTR6R21KNnN1YmliQ3dTdz09IiwibWFjIjoiMzc0NzBhN2IwN2VhNDA2YzQzYjFiMDM5Yzk2ODdiMGNjZGE5MjJkMTU5MDFjNzI2YWE4NWQyODhmYjQ3MjNlZSIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/160124259942030.jpg" alt="HMT Pace UGBKL 101" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Pace UGBKL 101</div><div class="cprice dim">₹2475</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6IlNPaFppV2EwSTZLdGtRNHNsaDRZNnc9PSIsInZhbHVlIjoiRDcrcldxUGZkZUpmNzRheisyK2kzUT09IiwibWFjIjoiOTRhNmM4ZmZkOWIyNDE2YjE4NzZiZjc4MjI0OGIzNTk3Nzk1YTM4ZWVjYzkwYWRiMTQyYjBkZmExODVmZDBkNCIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/1601245882731.jpg" alt="HMT Pace UGBKL 101 Gold" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Pace UGBKL 101 Gold</div><div class="cprice dim">₹2475</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6ImxkbE5XQkp6czFDZ3I5N3RiSXhaR3c9PSIsInZhbHVlIjoiV05GOWJVQU9jbS9FMmdURTZwU2lTZz09IiwibWFjIjoiMWEyODliMjA2ZDQ1OGQ1MWRhM2IwZjZiM2Q1ODVjMTIzZmZhNDRhZTU2ZTQ4YWE0MjNkMzdkYTA1N2FmNzcxMiIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/1601241945260275.jpg" alt="HMT Pace UGBKL 101 Silver" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Pace UGBKL 101 Silver</div><div class="cprice dim">₹2475</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6IlNPaFppV2EwSTZLdGtRNHNsaDRZNnc9PSIsInZhbHVlIjoiRDcrcldxUGZkZUpmNzRheisyK2kzUT09IiwibWFjIjoiOTRhNmM4ZmZkOWIyNDE2YjE4NzZiZjc4MjI0OGIzNTk3Nzk1YTM4ZWVjYzkwYWRiMTQyYjBkZmExODVmZDBkNCIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/1302241387397311.jpg" alt="HMT Pace UGBLBL 101 Black" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Pace UGBLBL 101 Black</div><div class="cprice dim">₹2750</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6IkFEYWczc2g3ZjMwN09WK1ZjMHJRamc9PSIsInZhbHVlIjoiQW1ZaDVLOGxJYXhyMFc3Q1J3NVdoUT09IiwibWFjIjoiZWMyYWQxMjU1ODQ0NzI4MGRmZTZiNDY2NTkyYzI0NWM5MWY0MzMyMDllNDhiMmRmYThjM2UyNzhkNjZlN2NlZiIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/1601242122450338.jpg" alt="HMT Pace UGSS 102 G" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Pace UGSS 102 G</div><div class="cprice dim">₹2000</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6IllYYjZlMXBGdGhYL0xDRCtqUXhVdmc9PSIsInZhbHVlIjoiNk5TUkNuMTkzcCtFZW14TXpDdXhPZz09IiwibWFjIjoiNTMwMDBhOGRiZTY2ZjI3NjMwMDVlNWI0MmM1Y2ZkYWQ4YmMxNzkwODY1ZDI4NmMyZWRiOGZkYmEzNjgwNjlhMCIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/1107242109532520.jpg" alt="HMT Pace ULSS 102 B" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Pace ULSS 102 B</div><div class="cprice dim">₹1950</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6IjRUVTNCcUVIV1E0UUxSU3hGdCt6T3c9PSIsInZhbHVlIjoiUzl2VXpBeSt3QkUwc3ZTSXNIbnVYQT09IiwibWFjIjoiZjE0ZjZjMjJhMTRhMmI1OTg5ZDQ2MDE0MjE4MDQyZTgwM2U1NTU1ZDE4MWMzM2E1NDZhZmRiMGUxYmYwOTJkOSIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/1102251094145412.jpg" alt="HMT Plus JGBKL 02 M" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Plus JGBKL 02 M</div><div class="cprice dim">₹2225</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6ImV4OFdvL0F6RnZrbHkxWEVUeU1ZOHc9PSIsInZhbHVlIjoicWZEbmZ2ZkVydldCV1N5am12M2M1dz09IiwibWFjIjoiZDhiNjAyN2M2MGE1ZDllNmM4NDk4YTE1MDc5MmExNjQ0ZmVlNTgyNjgzNGYwNWRkM2U2YjE0NWYyYTAyYTk1YSIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/0908251835473597.jpg" alt="HMT Plus JGBKL 04 G" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Plus JGBKL 04 G</div><div class="cprice dim">₹2675</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6IjdJZ056RWhDQ1daakJjajZiUmJHdUE9PSIsInZhbHVlIjoiNHlFSG9xUlRObkoydFo0K1RXeVlNUT09IiwibWFjIjoiMzQxMzliN2Q2NjZmZDA5YTBjMjE5ODExMTA1NDIyYWFjOGU4NmFhMmJkZWJhOTJiYmVmYWQ2NzdkNjVhOWNkOSIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/1304261471910224.png" alt="HMT Plus JGSL 02" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Plus JGSL 02</div><div class="cprice dim">₹2200</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6Ik1rQ2ZybHdKM0tPQzdGZGtrbGpMQWc9PSIsInZhbHVlIjoiVGNnZnVGNVJZN0VPcnBqQWVUK3Fjdz09IiwibWFjIjoiOWViMWMzOGFkZjdjYzU1NmVhZGM2YTA5YWFlOTU4YjZmZWQ4MGNhN2MzYjVlZTg3ZTUwZTcxODllNzYxNDAyMyIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/200723730443465.jpg" alt="HMT Plus JGSS 02" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Plus JGSS 02</div><div class="cprice dim">₹2250</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6IlVXS3Q2OGZESVlPMjdZU0ZRRmRsSGc9PSIsInZhbHVlIjoiZTJlVkpIWmtISmVCYlhIUUhZQVNTdz09IiwibWFjIjoiNzVhNDdkMzE5MWE3MzRhMjM1YmVjNDkzYjYwMTAyMmQ3ZjJkNjBmNWQ5OTYxZWM5YjUwM2YzNGRmNTRlMjVjNiIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/051223161139916.jpg" alt="HMT Plus JGSS 02 B" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Plus JGSS 02 B</div><div class="cprice dim">₹2250</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6IjI4ZzdLN0cwQ3plSGRjNFlmME85Rmc9PSIsInZhbHVlIjoidHRuYXYzNWRjc0RzaXV1cnAzTktEUT09IiwibWFjIjoiODk5ZjNhOGVkMWYyOTQ4MGQ3MjBhYjAyZjAxZTdiNTRhNWYzZmQwM2Q1MWNiOTQ4ZGRjMGZkMjYwNDg4MTBkZiIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/18122543977540.jpg" alt="HMT Sangam MGSS 05 Gold" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Sangam MGSS 05 Gold</div><div class="cprice dim">₹2765</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6ImRnUGhhVnRyTksvUlFPUlhtNUJTMUE9PSIsInZhbHVlIjoiVy9LdG5hWXU2S1FvdHArbkFnREY0QT09IiwibWFjIjoiZWJkNWQxMjk4MTNmNDIwZmE3ZmNjMDAyZjM2ODJjNzUwYWY2OGE4MWRkZTlmNGIyMzdiNmFiZjc5YjMwNjI2MyIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/1812251655414780.jpg" alt="HMT Sangam MGSS 05 Steel" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Sangam MGSS 05 Steel</div><div class="cprice dim">₹2765</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6IldHOFlkMytoMkZqOXlZN3ZHUGM1cFE9PSIsInZhbHVlIjoiS0JTYkt3SmUwTlJVcEEyYUlVZEd4QT09IiwibWFjIjoiNTBlMzEwMGI2YTkwMTQ5OTQwY2UyY2FmNWZhNjgzOTliMzRmOGY1OTVlNTcyZGVlOTJhZTRhNTc1Y2I0MGE4YyIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/221225673238124.jpg" alt="HMT Sangam MGSS 05A" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Sangam MGSS 05A</div><div class="cprice dim">₹2765</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6Im8zY0JTcVd0KzY0b3ZLaCswVkNYeWc9PSIsInZhbHVlIjoibndXNmw5eEFYL3JtQkdVS3hKcWJndz09IiwibWFjIjoiZTE4YTI1MmE1MjdiOWU5OWQwZDZkZTkzNGViNDA4N2I1Mzk5OWJmNjFjMmY4YjVkNjY5YTUwZmJlY2U0NjM0MiIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/2409251730240620.jpg" alt="HMT Tareeq Quartz T" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Tareeq Quartz T</div><div class="cprice dim">₹2100</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6InByQlRmUjdSYnUreHlhWi9FZmVzT3c9PSIsInZhbHVlIjoiaWN2bVlMT1c0SGNrRFlZcHU5OHF3dz09IiwibWFjIjoiMWFiY2YxYzc0MzYwNjVkOTIwZWQyMjhiMWIzNTE3OTNjM2I4NTlkZWZiNjgwY2VkNWZjODQ5NWJkMjQyNDRiZiIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/1803251718108686.jpg" alt="HMT Utsav BLN 01 B" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Utsav BLN 01 B</div><div class="cprice dim">₹1930</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6IkduTG9FUDVCeXFCSU5Ua0QxOXVSR1E9PSIsInZhbHVlIjoieUZiNW5uME1mRzM0RnF3UzRuTDFUUT09IiwibWFjIjoiYjgwOWM2NDdjNmQ1ZGQ0M2Q5YmNjNzI4NWRmNDA2ZjQ2N2ZhOTMzYTNjYjU3NGE0ZjgzYjY4NTQyZWQ0MGQwMiIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/051224181976054.jpg" alt="HMT Utsav BLN 01 B" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Utsav BLN 01 B</div><div class="cprice dim">₹2100</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6IlNVT1N4U1lGalRMS2ZWQ3RBczA3b2c9PSIsInZhbHVlIjoid0VPR0R5S2JpVXh5ZWVrcXd3czVvUT09IiwibWFjIjoiMzA3MTEzM2JjZmIyZGIyMjM4MTNjOTIzZTllMjMxZjVlYjg4MDQxMmI4OTg3ZGZjZDc1NjVhMjE2MDZkZDY0ZiIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/240824800925862.jpg" alt="HMT Utsav BLN 01 B" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Utsav BLN 01 B</div><div class="cprice dim">₹1925</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6IjcycTRxOHhBY05mZ0NiWE9LMkhNTkE9PSIsInZhbHVlIjoiL2EzaEdXRWh2bE9xNSt6TnRNdXhEZz09IiwibWFjIjoiZmZjOTJhZWZjYzE4YjllZTVkNjI4NmJjYWU1NTY2YmM3Nzk5MGYyNTU2MmEyMDc3MDc3NzgxODA0MTZiMTliMCIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/160323909499201.jpg" alt="HMT Utsav BLN 01 IP" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Utsav BLN 01 IP</div><div class="cprice dim">₹1930</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6InJjeUVobTV2S1dsTlkyZ2Q4bjVzL1E9PSIsInZhbHVlIjoiUWZQdzB2VVZkMm1JU3RPV0Rrbkordz09IiwibWFjIjoiZmVhMTY5OWU3NGU2MGQyZWI1MGI0OTk2OTVlZGFjOGFhMjBiMDg2MGM1Y2I5YWJjNGZlNTE0NjAzNjQ1NThiYiIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/1306251521825139.jpg" alt="HMT Utsav BLS 80 Bl" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Utsav BLS 80 Bl</div><div class="cprice dim">₹2326</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6IkZoKzZ2N2VnY2NHb1ovc1dVaFgrbEE9PSIsInZhbHVlIjoiTm4rQVhyWTkvdFFmZ1ZhdE1LUDk1Zz09IiwibWFjIjoiMWQyNmQ0MDlhYWQyNjhjNTUzNjFmYTAxOWJlMmM1YzA4NDU0MzViMTI2YjlhNTM4YTFjN2JjNTUwYjVkNzNkNCIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/2804262013552189.jpg" alt="HMT Vijay Lum Quart" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Vijay Lum Quart</div><div class="cprice dim">₹2575</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6Ikt4RURYdzFlUWhzS09tVDc4STkrRGc9PSIsInZhbHVlIjoiMzcwbytTUWVNclBGUDVOWkNPaklFZz09IiwibWFjIjoiMzk5NDkwMmNiMjlkMTAwOWMwYzAzNDFmODczNWFjOWQyZDE2YjBjY2ExM2VlNjc0NDM3NTk4NWM2NTQ3YzY0MyIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/2302261644627385.png" alt="HMT Vijay Lum Quart" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Vijay Lum Quart</div><div class="cprice dim">₹2575</div></div></div><div class="wcard"><div class="ribbon oos">● Out of Stock</div><div class="img-wrap" onclick="window.open(&#39;https://www.hmtwatches.in/product_overview?id=eyJpdiI6ImFKV2JzOXY4MVVTVHpXU1NETkZSOHc9PSIsInZhbHVlIjoiSWUwR2pGWHV6T1MyV1dSempHR1BBZz09IiwibWFjIjoiMGY0MzBjOThiMDYwZDBlYjU2MTQ4ZTQ1MjEyNDBiMDUzYmYyZjAwNGY3YTdiNGVmMjRlNjJkZDBjYmE4M2VjYSIsInRhZyI6IiJ9&#39;,&#39;_blank&#39;)"><img src="https://www.hmtwatches.in/public/uploads/product/230326618331398.png" alt="HMT Women" loading="lazy" onerror="this.style.display='none';var p=document.createElement('div');p.className='img-ph';p.innerHTML='⌚';this.parentNode.insertBefore(p,this.nextSibling)"><div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div></div><div class="cinfo"><div class="cname">HMT Women</div><div class="cprice dim">₹1750</div></div></div></div>
+</div>
+
+<script>
+
+// ── FETCH (local proxy first, then online fallbacks) ─────────────────────────
+async function fetchHTML(targetUrl){
+  try{
+    var lc=new AbortController();
+    setTimeout(function(){lc.abort();},8000);
+    var lr=await fetch('http://localhost:8765/'+encodeURIComponent(targetUrl),{signal:lc.signal});
+    if(lr.ok){var lt=await lr.text();if(lt&&lt.length>500&&(lt.includes('HMT')||lt.includes('hmtwatches'))) return lt;}
+  }catch(e){}
+  var PROXIES=[
+    function(u){ return 'https://api.allorigins.win/raw?url='+encodeURIComponent(u); },
+    function(u){ return 'https://corsproxy.io/?'+encodeURIComponent(u); },
+    function(u){ return 'https://api.codetabs.com/v1/proxy/?quest='+encodeURIComponent(u); },
+    function(u){ return 'https://api.allorigins.win/get?url='+encodeURIComponent(u); },
+    function(u){ return 'https://thingproxy.freeboard.io/fetch/'+u; }
+  ];
+  for(var i=0;i<PROXIES.length;i++){
+    try{
+      var ctrl=new AbortController();
+      setTimeout(function(){ctrl.abort();},15000);
+      var r=await fetch(PROXIES[i](targetUrl),{signal:ctrl.signal});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      var text=await r.text();
+      if(text&&text.trim().startsWith('{')){try{var j=JSON.parse(text);if(j.contents)text=j.contents;}catch(e2){}}
+      if(text&&text.length>500&&(text.includes('HMT')||text.includes('hmtwatches'))) return text;
+      throw new Error('bad content');
+    }catch(e){ console.warn('Proxy',i,'failed:',e.message); }
+  }
+  throw new Error('All proxies failed');
+}
+
+// ── SEED DATA — scraped live from hmtwatches.in on 29 Apr 2026 ────────────────
+// Key = image filename (used to match live updates). Name, price, status from page HTML.
+var I = 'https://www.hmtwatches.in/storage/app/public/image/all_images/';
+var B = 'https://www.hmtwatches.in/';
+var SEED = [
+  // --- UTSAV ---
+  {img:'2804261723919194.jpg', name:'HMT Utsav BLN 01 IPL',        price:'₹2100', status:'in',  url:'product_overview?id=eyJpdiI6Ik5WUzVDOHBjYjlWZmZ6NHBEMnZsN0E9PSIsInZhbHVlIjoidGtUMEFUQWhOVWZsU2V4Y3lmbFFVUT09IiwibWFjIjoiOGRhZGM2YjdlM2ZiMzI0YzE2MzgwZGVjMDVjMzY3Nzc3ODFhMGFjZmYwZTE5MTIzMWQ0MzI1YTE5OWQ4ZWE2NyIsInRhZyI6IiJ9'},
+  {img:'0701252111020971.jpg', name:'HMT Utsav BLS 80 Yellow',      price:'₹2326', status:'in',  url:'product_overview?id=eyJpdiI6InZ2bmg1TTlVd04vT2kzTVQ0d1UrWUE9PSIsInZhbHVlIjoiZmgrenhZZG1RaXIxZG9nRzkrcE5CUT09IiwibWFjIjoiN2E0MGU4YjFmZTIwYTgxNzJiMmZiODYyZjU1YzRkNjI1M2U3MWYwODVkZjY4NTliZjM4Yjc0MTlmM2FlY2FiMCIsInRhZyI6IiJ9'},
+  {img:'070125628914741.jpg',  name:'HMT Utsav BLS 80 White',       price:'₹2326', status:'in',  url:'product_overview?id=eyJpdiI6IkdUNjRZNzA3Znd5NzYzdVc3QmZSd3c9PSIsInZhbHVlIjoibTZuY09LWGlmTGlNVXJPZEdBM2ljUT09IiwibWFjIjoiZTk3NjhiMjM0ODAzODQwMjQyZDcwZjhhNDdmODRkNTI1YWJiOTcxNWE1ZWQxOWY3MGE5ZWQ2NjliYWFjYzJkMyIsInRhZyI6IiJ9'},
+  {img:'1306251521825139.jpg', name:'HMT Utsav BLS 80 Blue',        price:'₹2326', status:'oos', url:'product_overview?id=eyJpdiI6InJjeUVobTV2S1dsTlkyZ2Q4bjVzL1E9PSIsInZhbHVlIjoiUWZQdzB2VVZkMm1JU3RPV0Rrbkordz09IiwibWFjIjoiZmVhMTY5OWU3NGU2MGQyZWI1MGI0OTk2OTVlZGFjOGFhMjBiMDg2MGM1Y2I5YWJjNGZlNTE0NjAzNjQ1NThiYiIsInRhZyI6IiJ9'},
+  {img:'1803251718108686.jpg', name:'HMT Utsav BLN 01 Black Steel', price:'₹1930', status:'oos', url:'product_overview?id=eyJpdiI6InByQlRmUjdSYnUreHlhWi9FZmVzT3c9PSIsInZhbHVlIjoiaWN2bVlMT1c0SGNrRFlZcHU5OHF3dz09IiwibWFjIjoiMWFiY2YxYzc0MzYwNjVkOTIwZWQyMjhiMWIzNTE3OTNjM2I4NTlkZWZiNjgwY2VkNWZjODQ5NWJkMjQyNDRiZiIsInRhZyI6IiJ9'},
+  {img:'051224181976054.jpg',  name:'HMT Utsav BLN 01 Black',       price:'₹2100', status:'oos', url:'product_overview?id=eyJpdiI6IkduTG9FUDVCeXFCSU5Ua0QxOXVSR1E9PSIsInZhbHVlIjoieUZiNW5uME1mRzM0RnF3UzRuTDFUUT09IiwibWFjIjoiYjgwOWM2NDdjNmQ1ZGQ0M2Q5YmNjNzI4NWRmNDA2ZjQ2N2ZhOTMzYTNjYjU3NGE0ZjgzYjY4NTQyZWQ0MGQwMiIsInRhZyI6IiJ9'},
+  {img:'160323909499201.jpg',  name:'HMT Utsav BLN 01 IPL Black',   price:'₹1930', status:'oos', url:'product_overview?id=eyJpdiI6IjcycTRxOHhBY05mZ0NiWE9LMkhNTkE9PSIsInZhbHVlIjoiL2EzaEdXRWh2bE9xNSt6TnRNdXhEZz09IiwibWFjIjoiZmZjOTJhZWZjYzE4YjllZTVkNjI4NmJjYWU1NTY2YmM3Nzk5MGYyNTU2MmEyMDc3MDc3NzgxODA0MTZiMTliMCIsInRhZyI6IiJ9'},
+  {img:'240824800925862.jpg',  name:'HMT Utsav BLN 01 Black 1925',  price:'₹1925', status:'oos', url:'product_overview?id=eyJpdiI6IlNVT1N4U1lGalRMS2ZWQ3RBczA3b2c9PSIsInZhbHVlIjoid0VPR0R5S2JpVXh5ZWVrcXd3czVvUT09IiwibWFjIjoiMzA3MTEzM2JjZmIyZGIyMjM4MTNjOTIzZTllMjMxZjVlYjg4MDQxMmI4OTg3ZGZjZDc1NjVhMjE2MDZkZDY0ZiIsInRhZyI6IiJ9'},
+  // --- GALAXY ---
+  {img:'071124254880339.jpg',  name:'HMT Galaxy CG2G05 Yellow',     price:'₹1533', status:'in',  url:'product_overview?id=eyJpdiI6IjVncCszdUw5c0NFRzhEcHlGeExMbkE9PSIsInZhbHVlIjoiQW1xalNUR3g2emFnSGZQL1AxMWtNUT09IiwibWFjIjoiMWE4MmIxNzU1NmZjYzU5NzVmNjNmZDgzYmNiYzBiNThlOGRlNDE0Mjg1MWExM2ZhZGJiYmI5NWI3NDIwMWFlMiIsInRhZyI6IiJ9'},
+  {img:'1103261565822919.png', name:'HMT Galaxy CG2L01 White',      price:'₹1464', status:'in',  url:'product_overview?id=eyJpdiI6ImVqdEtOMmordmwwMmt2L0g4M3VNWXc9PSIsInZhbHVlIjoiVnRYRzRCTjRnTUpNWnhUcHhNdE9WUT09IiwibWFjIjoiMDU4NWI1ZDlkYjZhNGQ2ZjA1NzI3MDdlMjc4NGRiZWM4Mjk3MmE2YzQ4MGVmY2I1YmVjMGYwNzAzZGM1NjU0NCIsInRhZyI6IiJ9'},
+  {img:'2804261184686262.jpg', name:'HMT Galaxy CG2L01 Blue',       price:'₹1464', status:'in',  url:'product_overview?id=eyJpdiI6ImYxUmo1VjA1cUVIbnJjL2lvWE5WRlE9PSIsInZhbHVlIjoiR3QybHJ3bUJHMlYrVGhFalRlWkNmZz09IiwibWFjIjoiNjU5YTBjYTQyNjI2MWMwZTEzODI2M2YxMDNhYjdkNzA2MzY5YjYxZTYyMjAxM2MyN2Y0OGI3M2MyOGQ1OWY1YyIsInRhZyI6IiJ9'},
+  {img:'150723223530460.jpg',  name:'HMT Galaxy VG1L09 Yellow',     price:'₹1655', status:'oos', url:'product_overview?id=eyJpdiI6InBBbzRxaGd1UGdxQWd1VXZsa2lJd2c9PSIsInZhbHVlIjoiVjVGN04zSkhNTittaEpJVWpReWJoZz09IiwibWFjIjoiYTE1YjhiNmRhZjQ0ZDBhODIxNjQyYWMyZDQ2YWViNDYzYjEwZWE5MTgzZWZlNTBiNzAxNzYzOWVkZjZiYzU3OSIsInRhZyI6IiJ9'},
+  {img:'11032665350118.png',   name:'HMT Galaxy CG1G17 Blue',       price:'₹1229', status:'oos', url:'product_overview?id=eyJpdiI6Ik1KTldpRXJsVkx4SXdWbW1xTHFjdVE9PSIsInZhbHVlIjoiMC9rUmxmOTFHWmJmdlBsT1NnSDBuZz09IiwibWFjIjoiZTAxNjdlZDc1ZWNmZWNhNTc2OTczZWFiZjQ0NmY0N2ZjOGUzMWEzYWJkMmNlYTllYTMwOGVjY2NhMWZhZjVlMiIsInRhZyI6IiJ9'},
+  // --- PACE ---
+  {img:'1011231917791954.jpg', name:'HMT Pace UGBL 101 White',      price:'₹2575', status:'in',  url:'product_overview?id=eyJpdiI6IlpxanY0NnR3cWxNbkt1Q1hOMU52R0E9PSIsInZhbHVlIjoidENCSU5zelR4YjZYTmFTSldaV1p6UT09IiwibWFjIjoiMjRlNmVjYTFiNDExY2FlZmQyMTRkYTg0ZTc5YTJlMGQwZWY2OTRkNTI3NGFjYTYyM2U3MDVhNTZhMWU0ZmY1NCIsInRhZyI6IiJ9'},
+  {img:'1107241552752325.jpg', name:'HMT Pace ULSL 102 Blue',       price:'₹1900', status:'in',  url:'product_overview?id=eyJpdiI6Imgzd1V4ZVpqV0V1dUxiQjNuSHBhS3c9PSIsInZhbHVlIjoiZ0kxeHIwL1BaUXd3R1ZvMnNFZFFjdz09IiwibWFjIjoiYjk0MjRiZjZlY2FjZDdjNDE4MTZhNzYyZTlkNDU0M2UyYjgyN2IxNjJlMGQzZDljYmQ5NDc5YmY5NzQ1MGIyNCIsInRhZyI6IiJ9'},
+  {img:'1302241967250819.jpg', name:'HMT Pace UGBLBL 101 Steel',    price:'₹2750', status:'in',  url:'product_overview?id=eyJpdiI6Im80UlJSMXVSMGtZKytQRWpSNkoxWWc9PSIsInZhbHVlIjoiWE1CRU83eWROM0dicEh5SWZpSDU2Zz09IiwibWFjIjoiYjlkZjdhYjcwNWJlNGVhMTY2ZThjZWUwOWNjZTEzODU3MzRlYmFhOGI3MTEyZGU0OTU5YzAzODBlZjBmNDY1MSIsInRhZyI6IiJ9'},
+  {img:'1107242109532520.jpg', name:'HMT Pace ULSS 102 Blue',       price:'₹1950', status:'oos', url:'product_overview?id=eyJpdiI6IllYYjZlMXBGdGhYL0xDRCtqUXhVdmc9PSIsInZhbHVlIjoiNk5TUkNuMTkzcCtFZW14TXpDdXhPZz09IiwibWFjIjoiNTMwMDBhOGRiZTY2ZjI3NjMwMDVlNWI0MmM1Y2ZkYWQ4YmMxNzkwODY1ZDI4NmMyZWRiOGZkYmEzNjgwNjlhMCIsInRhZyI6IiJ9'},
+  {img:'1302241387397311.jpg', name:'HMT Pace UGBLBL 101 Black',    price:'₹2750', status:'oos', url:'product_overview?id=eyJpdiI6IlNPaFppV2EwSTZLdGtRNHNsaDRZNnc9PSIsInZhbHVlIjoiRDcrcldxUGZkZUpmNzRheisyK2kzUT09IiwibWFjIjoiOTRhNmM4ZmZkOWIyNDE2YjE4NzZiZjc4MjI0OGIzNTk3Nzk1YTM4ZWVjYzkwYWRiMTQyYjBkZmExODVmZDBkNCIsInRhZyI6IiJ9'},
+  {img:'1601245882731.jpg',    name:'HMT Pace UGBKL 101 Gold',      price:'₹2475', status:'oos', url:'product_overview?id=eyJpdiI6IlNPaFppV2EwSTZLdGtRNHNsaDRZNnc9PSIsInZhbHVlIjoiRDcrcldxUGZkZUpmNzRheisyK2kzUT09IiwibWFjIjoiOTRhNmM4ZmZkOWIyNDE2YjE4NzZiZjc4MjI0OGIzNTk3Nzk1YTM4ZWVjYzkwYWRiMTQyYjBkZmExODVmZDBkNCIsInRhZyI6IiJ9'},
+  {img:'1601241945260275.jpg', name:'HMT Pace UGBKL 101 Silver',    price:'₹2475', status:'oos', url:'product_overview?id=eyJpdiI6ImxkbE5XQkp6czFDZ3I5N3RiSXhaR3c9PSIsInZhbHVlIjoiV05GOWJVQU9jbS9FMmdURTZwU2lTZz09IiwibWFjIjoiMWEyODliMjA2ZDQ1OGQ1MWRhM2IwZjZiM2Q1ODVjMTIzZmZhNDRhZTU2ZTQ4YWE0MjNkMzdkYTA1N2FmNzcxMiIsInRhZyI6IiJ9'},
+  {img:'160124259942030.jpg',  name:'HMT Pace UGBKL 101 Black',     price:'₹2475', status:'oos', url:'product_overview?id=eyJpdiI6IjJqR1pEOTVUQjJIWjY5V2Y1dDdHaWc9PSIsInZhbHVlIjoiZzJ1blBDeTR6R21KNnN1YmliQ3dTdz09IiwibWFjIjoiMzc0NzBhN2IwN2VhNDA2YzQzYjFiMDM5Yzk2ODdiMGNjZGE5MjJkMTU5MDFjNzI2YWE4NWQyODhmYjQ3MjNlZSIsInRhZyI6IiJ9'},
+  // --- INOX ---
+  {img:'1902261059117217.jpg', name:'HMT INOX IXGM 11 IPL Gold',    price:'₹2904', status:'in',  url:'product_overview?id=eyJpdiI6ImxramdDS3NuZ2RBWjYxQmZ3KzBwUFE9PSIsInZhbHVlIjoiRVMxaFNJNHFHbC9meVZ0cWRXWDlpQT09IiwibWFjIjoiNDEyNWY4Yzc2OTk5ZThhZGMzNDlhZDA1MWViNGE2MWFhNmFhZjg2YjUyNzA0NmZiOTZhODU2N2FjNjRkNTA0MiIsInRhZyI6IiJ9'},
+  {img:'080225358541591.jpg',  name:'HMT INOX IXGL 11 IPL Gold',    price:'₹2594', status:'in',  url:'product_overview?id=eyJpdiI6Im9OUUZnV0dlS0xsVGlzRHlJaEdNalE9PSIsInZhbHVlIjoiU3Rja29oajZVdGNZalhoWGhCRmF4QT09IiwibWFjIjoiNzQyZmQ3NjgzOTI3Mzk3MzcxNGY0NGM2YmMzNzlhOTBhY2ExMTdhMjY1NGJhZGIzZWQ0NjVhNjM0NzFmMGQ2ZSIsInRhZyI6IiJ9'},
+  {img:'080225599973360.jpg',  name:'HMT INOX IXGL 11 IPL Silver',  price:'₹2594', status:'oos', url:'product_overview?id=eyJpdiI6IkJzVGJpemRuMHZsU0lzZDNsOWFYNHc9PSIsInZhbHVlIjoiU2xYRWpORVFNL1BBODRhck5EOFRJUT09IiwibWFjIjoiODUyMDE4YTZhNTJhZGM2MzQ2ZjcwYzJjZTQ1Y2VlM2M2NzYxN2Q2YTdhMjg4MDE2MThjZjA1NzdjNGNiODA2NiIsInRhZyI6IiJ9'},
+  // --- PLUS ---
+  {img:'0908251835473597.jpg', name:'HMT Plus JGBKL 04 Gold Black',  price:'₹2675', status:'oos', url:'product_overview?id=eyJpdiI6ImV4OFdvL0F6RnZrbHkxWEVUeU1ZOHc9PSIsInZhbHVlIjoicWZEbmZ2ZkVydldCV1N5am12M2M1dz09IiwibWFjIjoiZDhiNjAyN2M2MGE1ZDllNmM4NDk4YTE1MDc5MmExNjQ0ZmVlNTgyNjgzNGYwNWRkM2U2YjE0NWYyYTAyYTk1YSIsInRhZyI6IiJ9'},
+  {img:'1102251094145412.jpg', name:'HMT Plus JGBKL 02 Maroon',      price:'₹2225', status:'oos', url:'product_overview?id=eyJpdiI6IjRUVTNCcUVIV1E0UUxSU3hGdCt6T3c9PSIsInZhbHVlIjoiUzl2VXpBeSt3QkUwc3ZTSXNIbnVYQT09IiwibWFjIjoiZjE0ZjZjMjJhMTRhMmI1OTg5ZDQ2MDE0MjE4MDQyZTgwM2U1NTU1ZDE4MWMzM2E1NDZhZmRiMGUxYmYwOTJkOSIsInRhZyI6IiJ9'},
+  {img:'1304261471910224.png', name:'HMT Plus JGSL 02 Navy Blue',    price:'₹2200', status:'oos', url:'product_overview?id=eyJpdiI6IjdJZ056RWhDQ1daakJjajZiUmJHdUE9PSIsInZhbHVlIjoiNHlFSG9xUlRObkoydFo0K1RXeVlNUT09IiwibWFjIjoiMzQxMzliN2Q2NjZmZDA5YTBjMjE5ODExMTA1NDIyYWFjOGU4NmFhMmJkZWJhOTJiYmVmYWQ2NzdkNjVhOWNkOSIsInRhZyI6IiJ9'},
+  {img:'051223161139916.jpg',  name:'HMT Plus JGSS 02 Black',        price:'₹2250', status:'oos', url:'product_overview?id=eyJpdiI6IlVXS3Q2OGZESVlPMjdZU0ZRRmRsSGc9PSIsInZhbHVlIjoiZTJlVkpIWmtISmVCYlhIUUhZQVNTdz09IiwibWFjIjoiNzVhNDdkMzE5MWE3MzRhMjM1YmVjNDkzYjYwMTAyMmQ3ZjJkNjBmNWQ5OTYxZWM5YjUwM2YzNGRmNTRlMjVjNiIsInRhZyI6IiJ9'},
+  // --- SANGAM ---
+  {img:'221225673238124.jpg',  name:'HMT Sangam MGSS 05A',           price:'₹2765', status:'oos', url:'product_overview?id=eyJpdiI6IldHOFlkMytoMkZqOXlZN3ZHUGM1cFE9PSIsInZhbHVlIjoiS0JTYkt3SmUwTlJVcEEyYUlVZEd4QT09IiwibWFjIjoiNTBlMzEwMGI2YTkwMTQ5OTQwY2UyY2FmNWZhNjgzOTliMzRmOGY1OTVlNTcyZGVlOTJhZTRhNTc1Y2I0MGE4YyIsInRhZyI6IiJ9'},
+  {img:'1812251655414780.jpg', name:'HMT Sangam MGSS 05 Steel',      price:'₹2765', status:'oos', url:'product_overview?id=eyJpdiI6ImRnUGhhVnRyTksvUlFPUlhtNUJTMUE9PSIsInZhbHVlIjoiVy9LdG5hWXU2S1FvdHArbkFnREY0QT09IiwibWFjIjoiZWJkNWQxMjk4MTNmNDIwZmE3ZmNjMDAyZjM2ODJjNzUwYWY2OGE4MWRkZTlmNGIyMzdiNmFiZjc5YjMwNjI2MyIsInRhZyI6IiJ9'},
+  {img:'18122543977540.jpg',   name:'HMT Sangam MGSS 05 Gold',       price:'₹2765', status:'oos', url:'product_overview?id=eyJpdiI6IjI4ZzdLN0cwQ3plSGRjNFlmME85Rmc9PSIsInZhbHVlIjoidHRuYXYzNWRjc0RzaXV1cnAzTktEUT09IiwibWFjIjoiODk5ZjNhOGVkMWYyOTQ4MGQ3MjBhYjAyZjAxZTdiNTRhNWYzZmQwM2Q1MWNiOTQ4ZGRjMGZkMjYwNDg4MTBkZiIsInRhZyI6IiJ9'},
+  // --- VIJAY ---
+  {img:'2302262067111880.jpg', name:'HMT Vijay Luminous Quartz A',   price:'₹2575', status:'oos', url:'product_overview?id=eyJpdiI6IlZKWTZmcmdicWM5K04ySHFOSHZqVUE9PSIsInZhbHVlIjoieDN1YVVPbnlqdTNodElDVTR0TGorQT09IiwibWFjIjoiMjI2MGYyNzVkOGZjNTExNmZjNTE3NTNlYWJjZjMyNDMxMjgwNWEzOTI2N2M1MDMwY2FlMjI2NmFiNDk2ZDk0ZSIsInRhZyI6IiJ9'},
+  {img:'2804262013552189.jpg', name:'HMT Vijay Luminous Quartz B',   price:'₹2575', status:'oos', url:'product_overview?id=eyJpdiI6IkZoKzZ2N2VnY2NHb1ovc1dVaFgrbEE9PSIsInZhbHVlIjoiTm4rQVhyWTkvdFFmZ1ZhdE1LUDk1Zz09IiwibWFjIjoiMWQyNmQ0MDlhYWQyNjhjNTUzNjFmYTAxOWJlMmM1YzA4NDU0MzViMTI2YjlhNTM4YTFjN2JjNTUwYjVkNzNkNCIsInRhZyI6IiJ9'},
+  {img:'2302261644627385.png', name:'HMT Vijay Luminous Quartz C',   price:'₹2575', status:'oos', url:'product_overview?id=eyJpdiI6Ikt4RURYdzFlUWhzS09tVDc4STkrRGc9PSIsInZhbHVlIjoiMzcwbytTUWVNclBGUDVOWkNPaklFZz09IiwibWFjIjoiMzk5NDkwMmNiMjlkMTAwOWMwYzAzNDFmODczNWFjOWQyZDE2YjBjY2ExM2VlNjc0NDM3NTk4NWM2NTQ3YzY0MyIsInRhZyI6IiJ9'},
+  // --- GANDABERUNDA ---
+  {img:'2403261602031819.jpg', name:"HMT Men's Gandaberunda",        price:'₹2025', status:'oos', url:'product_overview?id=eyJpdiI6IkUwWFYvOGx3ZXJ6VGJoWkxZRXZvYlE9PSIsInZhbHVlIjoiQVNld2JxbkJPUjBlQmt0ekZJcFVpQT09IiwibWFjIjoiOTkzNjM0YjNkZDE1MTJjOTJkNzNlMTRkNzlhNWMwZDY4OTEyMGNlZDhiMzQwNWI2MmUzM2I3ZTU1NmYzYTM4MCIsInRhZyI6IiJ9'},
+  {img:'230326387066892.jpg',  name:"HMT Men's Gandaberunda II",     price:'₹1975', status:'oos', url:'product_overview?id=eyJpdiI6IjV0czBDNW1mcmZVL0hUU3ZuNmdHMEE9PSIsInZhbHVlIjoiYkRTdk9ITE8xaUhxdVJNTlhWNDRLUT09IiwibWFjIjoiM2FkMWIxZGQ0OTMxOTE0YTRmYTEyMTY0ZGY4YjQyNGQ0NWYxYWQ0OWIxZGQ5ZTJiNjZjYzdlNDhiZGY1NDIyYiIsInRhZyI6IiJ9'},
+  {img:'2303261928910018.jpg', name:"HMT Women's Gandaberunda",      price:'₹1775', status:'oos', url:'product_overview?id=eyJpdiI6ImdXYkQyajlTVnZ2Rm91TkFOTzZqd2c9PSIsInZhbHVlIjoiUHByOElVM3FtdzZLczBURVRZQytSZz09IiwibWFjIjoiZTBmZmVkMWE2YmE1ZjNmNTc3NWIzOTZkNDlkMWMxMzBhZWQyNDM2M2YyZWExODM5NTZkZmE0NDRhNWQ3OGRlMyIsInRhZyI6IiJ9'},
+  {img:'230326618331398.png',  name:"HMT Women's Gandaberunda II",   price:'₹1750', status:'oos', url:'product_overview?id=eyJpdiI6ImFKV2JzOXY4MVVTVHpXU1NETkZSOHc9PSIsInZhbHVlIjoiSWUwR2pGWHV6T1MyV1dSempHR1BBZz09IiwibWFjIjoiMGY0MzBjOThiMDYwZDBlYjU2MTQ4ZTQ1MjEyNDBiMDUzYmYyZjAwNGY3YTdiNGVmMjRlNjJkZDBjYmE4M2VjYSIsInRhZyI6IiJ9'},
+  // --- BAHADUR ---
+  {img:'0203261274886869.jpg', name:'HMT Bahadur Quartz Gold',       price:'₹5125', status:'in',  url:'product_overview?id=eyJpdiI6Im96Z0d5ZWRMUEZwZGFEWkJDSmNaUUE9PSIsInZhbHVlIjoiVE9ZSFBjaWhsWFRiY25sUFpFc25EUT09IiwibWFjIjoiMGMwNjY4NGViM2Y0YmI3NDI3Y2E0ZjljMjk1NGRjZTdlMGIwYTExYmNhN2Q1ZmI3ZjE2MzE2NWJkMmEwMmI0YSIsInRhZyI6IiJ9'},
+  {img:'020326256855587.jpg',  name:'HMT Bahadur Quartz Steel',      price:'₹4950', status:'in',  url:'product_overview?id=eyJpdiI6IlJUczhoZUJrU3hvaGhreUZRYkpZeXc9PSIsInZhbHVlIjoic1A5Q3Y4bUdRcDZLZ05Vd1BxU0cxZz09IiwibWFjIjoiNDc0NTQ4ZTJiZDdjYmQ4OWFmMTIyZGFjMWFhYjA1NTc0Yjc0YWVjYjFmN2RkNWJmMzBhMzU4MjgzOWUzZWU2ZCIsInRhZyI6IiJ9'},
+  // --- HIMALAYA ---
+  {img:'200625155542632.jpg',  name:'HMT Himalaya Quartz A',         price:'₹2250', status:'oos', url:'product_overview?id=eyJpdiI6Ik9MVXZKZGNyUWYyb0daYjZIRFZmUFE9PSIsInZhbHVlIjoiRXdiaWRmeWdESE9ldDlFTEV1V3Z4QT09IiwibWFjIjoiODA2MjljODdlNjNkNjMwMjRkNTE4ZmUzZTQ4OGMzNjUyZGZhNDliOTc3ZjdlMGNlZjVlM2NkMTQ1MzI5Mjg5YyIsInRhZyI6IiJ9'},
+  {img:'2006252055407350.jpg', name:'HMT Himalaya Quartz B',         price:'₹2250', status:'oos', url:'product_overview?id=eyJpdiI6ImlnT1haMXBJaSsrek50YXRadGxlZFE9PSIsInZhbHVlIjoiaXF4Tncwb3UrUU5TdDhobkFFcGZLQT09IiwibWFjIjoiOWI3ODFjYTQ0NjI1MzM0ZGUxZjZhMTA4ZWNjMzgyNGJlMWQxMTViMzE2NjBmNDgxYTQ3NDQxZmY0NWVjYWEzMCIsInRhZyI6IiJ9'},
+  {img:'3010251589235990.jpg', name:'HMT Himalaya Quartz C',         price:'₹2250', status:'oos', url:'product_overview?id=eyJpdiI6InBBUEcxMFlZbWpWdkYrNkZXMDlEcHc9PSIsInZhbHVlIjoiZklnc2RaUW84Unp0RUdJcWg0UWlMQT09IiwibWFjIjoiNDNlY2Y3YjIzMTllMTEwOGRjMTlkNzc3MTU1ZDdiZjdiM2ZiYzU0YjQyOTFjODgyMGY4ZDczYmZhNTY0YjE3NCIsInRhZyI6IiJ9'},
+  // --- ECONOMIC ---
+  {img:'071124877312062.jpg',  name:'HMT Economic OGSL 01',          price:'₹985',  status:'in',  url:'product_overview?id=eyJpdiI6ImhDSTYyUDJGaWQ2eWduWmNTNjZjSnc9PSIsInZhbHVlIjoiRWRLWWl6bCtHVDRXOWZqWkhZTmI0QT09IiwibWFjIjoiOGFlN2Y2YjkxOTc1MzdkOWM4MDFhZDcwNWM5NmU4ZjM1OGM2YzA0NWE5MzljY2QxNzI3MDA0ZjI4ZDcwN2E3NSIsInRhZyI6IiJ9'},
+  {img:'301123795325115.jpg',  name:'HMT Economic OGSS 01',          price:'₹1025', status:'oos', url:'product_overview?id=eyJpdiI6IjZ6NE1aZ2NzaWNXK1IxM2NVVHZEVnc9PSIsInZhbHVlIjoiV3YraDRGTlpKdmlQQStBamFNNWNjZz09IiwibWFjIjoiN2MwODI0ODY5NmQyM2QzYzM5ZTBiNTc5Y2JmY2MwMGFlMmE1YjIzOTFkZGNhZDEzOWQ0OTQyNWFlZTBkYTllNSIsInRhZyI6IiJ9'},
+  // --- TAREEQ ---
+  {img:'2409251730240620.jpg', name:'HMT Tareeq Quartz',             price:'₹2100', status:'oos', url:'product_overview?id=eyJpdiI6Im8zY0JTcVd0KzY0b3ZLaCswVkNYeWc9PSIsInZhbHVlIjoibndXNmw5eEFYL3JtQkdVS3hKcWJndz09IiwibWFjIjoiZTE4YTI1MmE1MjdiOWU5OWQwZDZkZTkzNGViNDA4N2I1Mzk5OWJmNjFjMmY4YjVkNjY5YTUwZmJlY2U0NjM0MiIsInRhZyI6IiJ9'},
+];
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+var inv = {};
+try { inv = JSON.parse(localStorage.getItem('hmtV6') || '{}'); } catch(e){}
+var running=false,pollT=null,cdT=null,cdSecs=0,actx=null,alarmLP=null,activeTab='all',restocked={};
+
+// Build key from img filename
+function imgKey(url){ var m=(url||'').match(/([^/]+)$/); return m?m[1]:''; }
+
+function loadSeed(){
+  SEED.forEach(function(w){
+    var k = w.img;
+    if(!inv[k]){
+      inv[k]={ name:w.name, price:w.price, status:w.status,
+               img:I+w.img, url:B+w.url, since:Date.now() };
+    }
+  });
+  persist();
+}
+
+// ── PARSE — matches products by image filename ────────────────────────────────
+function parsePage(html){
+  var doc=(new DOMParser()).parseFromString(html,'text/html');
+  var result=[], seen={};
+  doc.querySelectorAll('a[href*="product_overview"]').forEach(function(a){
+    var imgEl=a.querySelector('img');
+    if(!imgEl) return;
+    var src=imgEl.getAttribute('src')||'';
+    var key=imgKey(src);
+    if(!key||seen[key]) return;
+    seen[key]=true;
+
+    var card=a.parentElement;
+    for(var u=0;u<5&&card;u++){
+      if(card.textContent.includes('RS.')||card.querySelector('a[href*="product_details"]')) break;
+      card=card.parentElement;
+    }
+    if(!card) return;
+    var txt=card.textContent;
+
+    var nameEl=card.querySelector('a[href*="product_details"]');
+    var name=nameEl?nameEl.textContent.trim():'';
+    if(!name){
+      var m2=txt.match(/HMT\s+[A-Za-z0-9 \-\/]+/);
+      name=m2?m2[0].trim():'';
+    }
+    if(!name) name='HMT Watch';
+
+    var oos=txt.toLowerCase().includes('out of stock');
+    var pm=txt.match(/RS\.\s*([\d,]+)/i);
+    var price=pm?'₹'+pm[1].replace(',',''):'';
+    var imgFull=src.startsWith('http')?src:('https://www.hmtwatches.in'+src);
+    var href=a.getAttribute('href')||'';
+    var url=href.startsWith('http')?href:('https://www.hmtwatches.in/'+href);
+    result.push({key:key,name:name,status:oos?'oos':'in',price:price,img:imgFull,url:url});
+  });
+  return result;
+}
+
+// ── PAGES TO SCAN ─────────────────────────────────────────────────────────────
+var SCAN_PAGES=[
+  'https://www.hmtwatches.in/',
+  'https://www.hmtwatches.in/hmt_premium_watches'
+];
+
+// ── MAIN CHECK ────────────────────────────────────────────────────────────────
+async function doCheck(){
+  setDot('scanning'); showProgress(true); setProgress(10);
+  loadSeed(); renderGrid(); updateStats();
+
+  var liveOk=false, totalFound=0, newlyDiscovered=[];
+  try{
+    notify('🔍 Scanning hmtwatches.in for all watches…','info');
+
+    var allItems=[], seen={};
+    for(var p=0;p<SCAN_PAGES.length;p++){
+      try{
+        setProgress(15 + (p/SCAN_PAGES.length)*60);
+        notify('🔍 Scanning page '+(p+1)+' of '+SCAN_PAGES.length+'…','info');
+        var html=await fetchHTML(SCAN_PAGES[p]);
+        var items=parsePage(html);
+        items.forEach(function(w){
+          if(!seen[w.key]){ seen[w.key]=true; allItems.push(w); }
+        });
+      }catch(e){ console.warn('Page scan failed:',SCAN_PAGES[p],e.message); }
+    }
+
+    setProgress(82);
+
+    if(allItems.length>0){
+      var backInStock=[];
+      allItems.forEach(function(w){
+        var prev=inv[w.key];
+        if(prev&&prev.status==='oos'&&w.status==='in'){
+          backInStock.push(w.key);
+          restocked[w.key]=Date.now();
+        }
+        if(inv[w.key]){
+          inv[w.key].status=w.status;
+          if(w.price) inv[w.key].price=w.price;
+          if(w.name&&w.name!=='HMT Watch') inv[w.key].name=w.name;
+        } else {
+          inv[w.key]={ name:w.name, price:w.price, status:w.status,
+                       img:w.img, url:w.url, since:Date.now(), isNew:true };
+          newlyDiscovered.push(w.name||w.key);
+          if(w.status==='in'){
+            backInStock.push(w.key);
+            restocked[w.key]=Date.now();
+          }
+        }
+      });
+      totalFound=allItems.length;
+      persist(); renderGrid(); updateStats(); liveOk=true;
+
+      if(newlyDiscovered.length){
+        notify('🆕 '+newlyDiscovered.length+' new watch(es) discovered: '+newlyDiscovered.join(', '),'ok');
+        setTimeout(function(){
+          if(backInStock.length) triggerAlarm(backInStock);
+        },3000);
+      } else if(backInStock.length){
+        triggerAlarm(backInStock);
+      } else {
+        var n=Object.values(inv).filter(function(v){return v.status==='in';}).length;
+        notify('✓ Live: '+totalFound+' watches scanned — '+n+' in stock · '+Object.keys(inv).length+' total tracked','ok');
+      }
+    }
+  }catch(e){ console.warn('Live fetch failed:',e.message); }
+
+  if(!liveOk) notify('📦 Showing '+Object.keys(inv).length+' saved watches — live refresh failed, try again','warn');
+
+  setProgress(100); showProgress(false);
+  document.getElementById('lchk').textContent='Last: '+new Date().toLocaleTimeString();
+  setDot(running?'active':'');
+}
+
+// ── CONTROLS ──────────────────────────────────────────────────────────────────
+async function checkNow(){
+  var btn=document.getElementById('checkBtn');
+  btn.disabled=true; btn.textContent='↻  Loading…';
+  await doCheck();
+  btn.disabled=!running; btn.textContent='↻  Refresh';
+}
+function toggleTracking(){
+  if(!actx){
+    try{
+      actx=new(window.AudioContext||window.webkitAudioContext)();
+      // Play a silent buffer immediately to fully unlock audio for future timer calls
+      var buf=actx.createBuffer(1,1,22050);
+      var s=actx.createBufferSource();
+      s.buffer=buf; s.connect(actx.destination); s.start(0);
+    }catch(e){}
+  }
+  if(actx&&actx.state==='suspended') actx.resume();
+  running?stopT():startT();
+}
+function startT(){
+  running=true;
+  var btn=document.getElementById('trackBtn');
+  btn.textContent='■  Stop'; btn.classList.remove('primary'); btn.classList.add('stop-btn');
+  document.getElementById('checkBtn').disabled=false;
+  document.getElementById('statusPill').classList.add('live');
+  setDot('active');
+  checkNow();
+  var secs=+document.getElementById('intSel').value;
+  pollT=setInterval(checkNow,secs*1000);
+  cdSecs=secs;
+  cdT=setInterval(function(){
+    cdSecs--;
+    if(cdSecs<=0) cdSecs=+document.getElementById('intSel').value;
+    var m=Math.floor(cdSecs/60),s=cdSecs%60;
+    document.getElementById('timerTxt').textContent='NEXT '+m+':'+(s<10?'0':'')+s;
+  },1000);
+}
+function stopT(){
+  running=false; clearInterval(pollT); clearInterval(cdT);
+  var btn=document.getElementById('trackBtn');
+  btn.textContent='▶  Start Tracking'; btn.classList.add('primary'); btn.classList.remove('stop-btn');
+  document.getElementById('checkBtn').disabled=true;
+  document.getElementById('statusPill').classList.remove('live');
+  document.getElementById('timerTxt').textContent='IDLE';
+  setDot('');
+}
+function switchTab(tab,el){
+  activeTab=tab;
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+  el.classList.add('active'); renderGrid();
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function renderGrid(){
+  var q=(document.getElementById('srch').value||'').toLowerCase().trim();
+  var entries=Object.entries(inv).filter(function(e){
+    if(activeTab==='in'&&e[1].status!=='in') return false;
+    if(activeTab==='oos'&&e[1].status!=='oos') return false;
+    if(q&&!e[1].name.toLowerCase().includes(q)&&!e[0].toLowerCase().includes(q)) return false;
+    return true;
+  });
+  entries.sort(function(a,b){
+    if(a[1].status==='in'&&b[1].status!=='in') return -1;
+    if(b[1].status==='in'&&a[1].status!=='in') return 1;
+    return a[1].name.localeCompare(b[1].name);
+  });
+  if(!entries.length){
+    document.getElementById('grid').innerHTML='<div class="empty">'+(q?'No watches match "<strong style="color:var(--gold2)">'+q+'</strong>"':'No watches yet.')+'</div>';
+    return;
+  }
+  document.getElementById('grid').innerHTML=entries.map(function(e){
+    var k=e[0],d=e[1],isIn=d.status==='in';
+    var imgH=d.img?'<img src="'+d.img+'" alt="'+d.name+'" loading="lazy" onerror="this.style.display=\'none\'">':'<div class="img-ph">⌚</div>';
+    var ov='<div class="img-overlay"><button class="buy-btn-sm">Buy Now →</button></div>';
+    var fn=d.url?'window.open(\''+d.url+'\',\'_blank\')':'';
+    return '<div class="wcard'+(isIn?' ins':'')+'">'
+      +'<div class="ribbon '+(isIn?'in':'oos')+'">'+(isIn?'● In Stock':'● Out of Stock')+'</div>'
+      +'<div class="img-wrap" onclick="'+fn+'">'+imgH+ov+'</div>'
+      +'<div class="cinfo"><div class="cname">'+d.name+'</div>'
+      +(d.price?'<div class="cprice'+(isIn?'':' dim')+'">'+d.price+'</div>':'')
+      +'</div></div>';
+  }).join('');
+}
+function updateStats(){
+  var v=Object.values(inv),t=v.length,n=v.filter(function(x){return x.status==='in';}).length;
+  document.getElementById('sT').textContent=t||'—';
+  document.getElementById('sI').textContent=t?n:'—';
+  document.getElementById('sO').textContent=t?(t-n):'—';
+  document.getElementById('sN').textContent=Object.keys(restocked).length||'0';
+}
+
+// ── ALARM ─────────────────────────────────────────────────────────────────────
+function playBeep(){
+  if(!actx) return;
+  if(actx.state==='suspended'){actx.resume(); return;}
+  var t=actx.currentTime;
+  [[880,0,0.5,0.5],[1100,0.2,0.4,0.4],[880,0.4,0.5,0.4],[1320,0.65,0.6,0.5]].forEach(function(x){
+    var o=actx.createOscillator(),g=actx.createGain();
+    o.connect(g); g.connect(actx.destination);
+    o.type='sine'; o.frequency.value=x[0];
+    g.gain.setValueAtTime(x[2],t+x[1]);
+    g.gain.exponentialRampToValueAtTime(0.001,t+x[1]+x[3]);
+    o.start(t+x[1]); o.stop(t+x[1]+x[3]+0.05);
+  });
+}
+function triggerAlarm(keys){
+  document.getElementById('alarmGrid').innerHTML=keys.slice(0,6).map(function(k){
+    var d=inv[k]||{};
+    var img=d.img?'<img src="'+d.img+'" alt="'+d.name+'">':'<div style="width:96px;height:96px;background:var(--card2);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:2.5rem">⌚</div>';
+    var fn=d.url?'window.open(\''+d.url+'\',\'_blank\')':'';
+    return '<div class="alarm-item" onclick="'+fn+'">'+img+'<span>'+(d.name||k)+'</span></div>';
+  }).join('');
+  document.getElementById('alarmOv').classList.add('show');
+  document.title='🔔 BACK IN STOCK!';
+  playBeep();
+  alarmLP=setInterval(playBeep,2400);
+}
+function beep(){playBeep();}
+function stopAlarm(){
+  clearInterval(alarmLP); alarmLP=null;
+  document.getElementById('alarmOv').classList.remove('show');
+  document.title='HMT Restock Radar';
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function setDot(s){document.getElementById('dot').className='dot'+(s?' '+s:'');}
+var ntT=null;
+function notify(msg,type){
+  var el=document.getElementById('notif');
+  el.textContent=msg; el.className='notif show '+type;
+  clearTimeout(ntT); ntT=setTimeout(function(){el.classList.remove('show');},8000);
+}
+function setProgress(p){document.getElementById('progressFill').style.width=p+'%';}
+function showProgress(s){
+  document.getElementById('progressBar').classList.toggle('show',s);
+  if(!s) setTimeout(function(){setProgress(0);},400);
+}
+function persist(){try{localStorage.setItem('hmtV6',JSON.stringify(inv));}catch(e){}}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+// Unlock audio on first click anywhere on page
+document.addEventListener('click', function unlock(){
+  if(!actx){try{actx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}}
+  if(actx&&actx.state==='suspended') actx.resume();
+  document.removeEventListener('click',unlock,true);
+},true);
+
+if(Object.keys(inv).length){renderGrid();updateStats();}
+</script>
+
+
+</body></html>
